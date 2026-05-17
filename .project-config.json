@@ -1,0 +1,35 @@
+{
+  "build_command": "pnpm run build",
+  "capabilities": [],
+  "dev_command": "pnpm run dev",
+  "env_vars": {},
+  "experiments": null,
+  "git_remote": {
+    "repo_url": "s3://vida-prod-gitrepo/webdev-git/310519663663187057/JqJ8Db5KTYiptbb3HhHm5C",
+    "access_key_id": "ASIAZV3A2ECZOPGOEJR6",
+    "secret_access_key": "5IN56LuDEchdN/wSItbtvrG9oECFT7holDhUbqjU",
+    "session_token": "IQoJb3JpZ2luX2VjEOf//////////wEaCXVzLWVhc3QtMSJGMEQCIBGIOzEhEet/j2qbvRLAiNSYawA0WyCr2Foy7w9nDBh8AiBMFbiae852szJH4kIvExvz9MVPWwo/WrCuaTQlUyDPuSr+Awiw//////////8BEAQaDDY2NTM4NjA5ODg2NiIM+gavHGQGifRwezoSKtIDXMzk8YRdnragvAtC9qAoq9MA1onLxh40p0KCW9GHFkFo/HCrWWNvHHNojuuVEyVoqOnA3kV0er7JDM8ayQzqcWyawFvj7HtSAQFNRSvjP8CLxFY5oU4J38RCinJYg6heOXd7+kvMmv3J5BikdVOt6XLLe+BX0KEsI+NZyZ6cT4HVCPZaoNf4Udi8lUHNU99FrrCDsFxyjJlBYKqVIDkpjep4500oklzl70DEDwkV2580kkFxvkvNnRWAJRHemKR3wcp52a/seCLEvP7fgRAmEDfPeZFBG26tgRXK3njS57P9BJyUvqwLckMyqyUdRPDYR396S4XwOcC9m8eM58Hlj2NOT1MCraGH4d7+TJ+OWEgtkU+07nvP8dIPEzyiB8+vydGexqNBNY0W7HHzXTEB9nje4EYFlo3+qaGxzzq58o93ChC0Jm9pWthA6vnQLS29OYWhXfL2AnVG8khdnreqCjfNBk8kvFjbl/SwbIkd6J1aOdXd5y/jQN45u9oiydxONI3IMbSs9cLy+FHoWx69WvtD5pEe3brgGzheRMCbuUeycKGIx2/8n+HJWN6DmhkpeWNgXz3VwEI7EmqTOptnvsgeFYxPqsPreyx4Hc6qZ0YG/TCDganQBjqeAY9dmwhRr9ERWtZJeGAIshlHksb8y0G3ddCucWykMkV4dcyKBS5kI6hMTvrDwKtgVN65OqxRYapkWqup90xiaAAUzYa1m0c1KrEtLcbQg0xDi2n73oaqarHsi7R0lArC1HJUQ7zxm3zriPhxIZl7Y4a1xNcICLDHYOhiAXePNo3sMsd4bLAs9t3m/f+qUrF+FbyngDlSH4jsZA9Z3l4y",
+    "expiration": "2026-05-18T10:26:11.000Z"
+  },
+  "name": "portfolio-financeiro-tech",
+  "path": "/home/ubuntu/portfolio-financeiro-tech",
+  "port": 3000,
+  "secrets": {
+    "BUILT_IN_FORGE_API_KEY": "YUKkuQouhivy6WZxwU4JeE",
+    "BUILT_IN_FORGE_API_URL": "https://forge.manus.ai",
+    "JWT_SECRET": "2JvFbh9QKLYUEjQY3Qy94u",
+    "OAUTH_SERVER_URL": "https://api.manus.im",
+    "OWNER_NAME": "André Salerno, MSc",
+    "OWNER_OPEN_ID": "53RzMhagdVWHkamNXdQyfP",
+    "VITE_ANALYTICS_ENDPOINT": "https://manus-analytics.com",
+    "VITE_ANALYTICS_WEBSITE_ID": "2f242ee4-5ae5-44cb-9ace-36a5ba3579af",
+    "VITE_APP_ID": "JqJ8Db5KTYiptbb3HhHm5C",
+    "VITE_APP_LOGO": "",
+    "VITE_APP_TITLE": "Portfólio Profissional - Finanças \u0026 Tecnologia",
+    "VITE_FRONTEND_FORGE_API_KEY": "JquafnoizNhPq3niZbPbEu",
+    "VITE_FRONTEND_FORGE_API_URL": "https://forge.manus.ai",
+    "VITE_OAUTH_PORTAL_URL": "https://manus.im"
+  },
+  "template_id": "web-static",
+  "test_command": "pnpm test"
+}
