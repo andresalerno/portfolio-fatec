@@ -1,5 +1,3 @@
-import nodemailer from "nodemailer";
-
 type ContactPayload = {
   email: string;
   message: string;
@@ -23,7 +21,16 @@ type ContactResponse = {
   statusCode: number;
 };
 
-type MailTransporter = ReturnType<typeof nodemailer.createTransport>;
+type MailTransporter = {
+  sendMail: (options: {
+    from: string;
+    html: string;
+    replyTo: string;
+    subject: string;
+    text: string;
+    to: string;
+  }) => Promise<unknown>;
+};
 
 let cachedTransporter: MailTransporter | undefined;
 
@@ -76,10 +83,12 @@ function validatePayload(body: unknown): ContactPayload {
   return { email, message, name, subject, website };
 }
 
-function getTransporter() {
+async function getTransporter() {
   if (cachedTransporter) {
     return cachedTransporter;
   }
+
+  const nodemailer = await import("nodemailer");
 
   const host = getRequiredEnv("SMTP_HOST");
   const port = Number(getRequiredEnv("SMTP_PORT"));
@@ -88,7 +97,7 @@ function getTransporter() {
   }
 
   const secure = (process.env.SMTP_SECURE ?? (port === 465 ? "true" : "false")).trim() === "true";
-  cachedTransporter = nodemailer.createTransport({
+  cachedTransporter = nodemailer.default.createTransport({
     host,
     port,
     secure,
@@ -136,7 +145,7 @@ function buildHtmlMessage(payload: ContactPayload) {
 }
 
 async function sendContactEmail(payload: ContactPayload) {
-  const transporter = getTransporter();
+  const transporter = await getTransporter();
   const to = getRequiredEnv("CONTACT_TO_EMAIL");
   const from = process.env.CONTACT_FROM_EMAIL?.trim() || getRequiredEnv("SMTP_USER");
 
