@@ -1,15 +1,10 @@
-import nodemailer from "nodemailer";
-import { z } from "zod";
-
-const contactSchema = z.object({
-  name: z.string().trim().min(2, "Informe seu nome.").max(120, "Nome muito longo."),
-  email: z.string().trim().email("Informe um e-mail valido.").max(320, "E-mail muito longo."),
-  subject: z.string().trim().min(3, "Informe um assunto.").max(160, "Assunto muito longo."),
-  message: z.string().trim().min(10, "Escreva uma mensagem com mais detalhes.").max(5000, "Mensagem muito longa."),
-  website: z.string().optional(),
-});
-
-type ContactPayload = z.infer<typeof contactSchema>;
+type ContactPayload = {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  website?: string;
+};
 
 type RequestLike = {
   body?: unknown;
@@ -35,7 +30,7 @@ class ContactRequestError extends Error {
   }
 }
 
-let cachedTransporter: nodemailer.Transporter | null = null;
+let cachedTransporter: { sendMail: (options: unknown) => Promise<unknown> } | undefined;
 
 function getRequiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -45,10 +40,54 @@ function getRequiredEnv(name: string) {
   return value;
 }
 
-function getTransporter() {
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function validatePayload(body: unknown): ContactPayload {
+  if (!body || typeof body !== "object") {
+    throw new ContactRequestError(400, "Dados invalidos.");
+  }
+
+  const payload = body as Record<string, unknown>;
+  const name = String(payload.name ?? "").trim();
+  const email = String(payload.email ?? "").trim();
+  const subject = String(payload.subject ?? "").trim();
+  const message = String(payload.message ?? "").trim();
+  const website = payload.website == null ? "" : String(payload.website).trim();
+
+  if (name.length < 2) {
+    throw new ContactRequestError(400, "Informe seu nome.");
+  }
+  if (name.length > 120) {
+    throw new ContactRequestError(400, "Nome muito longo.");
+  }
+  if (!isValidEmail(email) || email.length > 320) {
+    throw new ContactRequestError(400, "Informe um e-mail valido.");
+  }
+  if (subject.length < 3) {
+    throw new ContactRequestError(400, "Informe um assunto.");
+  }
+  if (subject.length > 160) {
+    throw new ContactRequestError(400, "Assunto muito longo.");
+  }
+  if (message.length < 10) {
+    throw new ContactRequestError(400, "Escreva uma mensagem com mais detalhes.");
+  }
+  if (message.length > 5000) {
+    throw new ContactRequestError(400, "Mensagem muito longa.");
+  }
+
+  return { name, email, subject, message, website };
+}
+
+async function getTransporter() {
   if (cachedTransporter) {
     return cachedTransporter;
   }
+
+  const nodemailerModule = await import("nodemailer");
+  const nodemailer = nodemailerModule.default;
 
   const host = getRequiredEnv("SMTP_HOST");
   const port = Number(getRequiredEnv("SMTP_PORT"));
@@ -59,7 +98,7 @@ function getTransporter() {
 
   const secure = (process.env.SMTP_SECURE ?? (port === 465 ? "true" : "false")).trim() === "true";
 
-  cachedTransporter = nodemailer.createTransport({
+  const transporter = nodemailer.createTransport({
     host,
     port,
     secure,
@@ -68,6 +107,10 @@ function getTransporter() {
       pass: getRequiredEnv("SMTP_PASS"),
     },
   });
+
+  cachedTransporter = {
+    sendMail: (options) => transporter.sendMail(options as Parameters<typeof transporter.sendMail>[0]),
+  };
 
   return cachedTransporter;
 }
@@ -158,7 +201,7 @@ function buildHtmlMessage(payload: ContactPayload) {
 }
 
 async function sendContactEmail(payload: ContactPayload) {
-  const transporter = getTransporter();
+  const transporter = await getTransporter();
   const to = getRequiredEnv("CONTACT_TO_EMAIL");
   const from = process.env.CONTACT_FROM_EMAIL?.trim() || getRequiredEnv("SMTP_USER");
 
@@ -189,19 +232,11 @@ export async function handleContactRequest(req: RequestLike, res: ResponseLike) 
       }
     }
 
-    const payload = contactSchema.parse(body);
+    const payload = validatePayload(body);
     await sendContactEmail(payload);
 
     sendJson(res, 200, { success: true });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      sendJson(res, 400, {
-        error: error.issues[0]?.message || "Dados invalidos.",
-        success: false,
-      });
-      return;
-    }
-
     if (error instanceof ContactRequestError) {
       sendJson(res, error.statusCode, {
         error: error.exposeMessage ? error.message : "Falha ao enviar a mensagem.",
