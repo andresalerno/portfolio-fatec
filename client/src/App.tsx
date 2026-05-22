@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
@@ -6,6 +7,34 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 
+function AnalyticsScript() {
+  useEffect(() => {
+    const analyticsEndpoint = import.meta.env.VITE_ANALYTICS_ENDPOINT?.trim();
+    const websiteId = import.meta.env.VITE_ANALYTICS_WEBSITE_ID?.trim();
+
+    if (!analyticsEndpoint || !websiteId) {
+      return;
+    }
+
+    const scriptId = "umami-analytics-script";
+    if (document.getElementById(scriptId)) {
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.defer = true;
+    script.src = `${analyticsEndpoint.replace(/\/+$/, "")}/umami`;
+    script.dataset.websiteId = websiteId;
+    document.body.appendChild(script);
+
+    return () => {
+      script.remove();
+    };
+  }, []);
+
+  return null;
+}
 
 function Router() {
   return (
@@ -31,6 +60,7 @@ function App() {
         // switchable
       >
         <TooltipProvider>
+          <AnalyticsScript />
           <Toaster />
           <Router />
         </TooltipProvider>

@@ -204,7 +204,6 @@ NEVER use external map libraries or request API keys from users - the Manus prox
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@builder.io/vite-plugin-jsx-loc": "^0.1.1",
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.1.3",
     "@types/express": "4.17.21",
@@ -216,7 +215,6 @@ NEVER use external map libraries or request API keys from users - the Manus prox
     "add": "^2.0.6",
     "autoprefixer": "^10.4.20",
     "esbuild": "^0.25.0",
-    "pnpm": "^10.15.1",
     "postcss": "^8.4.47",
     "prettier": "^3.6.2",
     "tailwindcss": "^4.1.14",
@@ -227,13 +225,10 @@ NEVER use external map libraries or request API keys from users - the Manus prox
     "vite-plugin-manus-runtime": "^0.0.57",
     "vitest": "^2.1.4"
   },
-  "packageManager": "pnpm@10.4.1+sha512.c753b6c3ad7afa13af388fa6d808035a008e30ea9993f58c6663e2bc5ff21679aa834db094987129aa4d488b86df57f7b634981b2f827cdcacc698cc0cfb88af",
-  "pnpm": {
-    "patchedDependencies": {
-      "wouter@3.7.1": "patches/wouter@3.7.1.patch"
-    },
-    "overrides": {
-      "tailwindcss>nanoid": "3.3.7"
+  "packageManager": "npm@11.12.1",
+  "overrides": {
+    "tailwindcss": {
+      "nanoid": "3.3.7"
     }
   }
 }
@@ -636,3 +631,43 @@ const { data } = trpc.items.getByIds.useQuery({ ids });
 **Rule:** Use sonner for toasts; do not add react-toastify or @radix-ui/react-toast
 
 **Rule:** If you put placeholder components for App.tsx routes, you MUST replace them with actual components after your implementation.
+
+## Deploy na Vercel
+
+Este projeto pode ser publicado na Vercel como frontend estático com função serverless para o formulário de contato.
+
+### Variáveis de ambiente
+
+- `SMTP_HOST`: host SMTP do seu provedor
+- `SMTP_PORT`: porta SMTP, normalmente `465` ou `587`
+- `SMTP_SECURE`: `true` para SSL direto, normalmente com porta `465`
+- `SMTP_USER`: usuário da conta SMTP
+- `SMTP_PASS`: senha da conta SMTP ou app password
+- `CONTACT_TO_EMAIL`: e-mail que vai receber as mensagens do formulário
+- `CONTACT_FROM_EMAIL`: opcional; remetente usado no envio. Se omitido, usa `SMTP_USER`
+- `VITE_CONTACT_EMAIL`: opcional; e-mail público exibido na seção de contato
+
+Importante:
+- `CONTACT_TO_EMAIL` e `CONTACT_FROM_EMAIL` ficam no backend da Vercel e podem apontar para seu e-mail pessoal apenas para recebimento das mensagens.
+- `VITE_CONTACT_EMAIL` vai para o frontend e fica público no site. Só preencha com seu e-mail pessoal se você quiser exibi-lo para visitantes.
+
+### Passos
+
+1. Crie um projeto na Vercel apontando para este repositório.
+2. Em Build and Output Settings, use o arquivo `vercel.json` versionado no projeto.
+3. Use o arquivo `.env.example` como referencia e cadastre as variáveis acima no ambiente da Vercel.
+4. Faça o deploy.
+
+### Gmail
+
+1. Ative a verificacao em duas etapas na sua conta Google.
+2. Gere uma App Password para Mail.
+3. Use `smtp.gmail.com` com porta `465` e `SMTP_SECURE=true`.
+4. Defina `SMTP_USER` com seu Gmail e `SMTP_PASS` com a App Password.
+
+### Observações
+
+- O frontend envia `POST /api/contact`.
+- A função valida nome, e-mail, assunto e mensagem antes de enviar.
+- O campo oculto `website` funciona como honeypot simples contra bots.
+- Para Gmail, use App Password em vez da senha normal da conta.

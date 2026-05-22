@@ -1,7 +1,7 @@
 {
-  "build_command": "pnpm run build",
+  "build_command": "npm run build",
   "capabilities": [],
-  "dev_command": "pnpm run dev",
+  "dev_command": "npm run dev",
   "env_vars": {},
   "experiments": null,
   "git_remote": {
@@ -31,5 +31,5 @@
     "VITE_OAUTH_PORTAL_URL": "https://manus.im"
   },
   "template_id": "web-static",
-  "test_command": "pnpm test"
+  "test_command": "npm run check"
 }

@@ -5,22 +5,26 @@ import { Textarea } from '@/components/ui/textarea';
 import { Mail, Linkedin, Github, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface FormData {
+interface ContactFormData {
   name: string;
   email: string;
   subject: string;
   message: string;
+  website: string;
 }
 
 const CONTACT_IMAGE = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663663187057/JqJ8Db5KTYiptbb3HhHm5C/contact-section-bg-Jbex6M4kzEzUjWZqCD6BxL.webp';
+const CONTACT_EMAIL = import.meta.env.VITE_CONTACT_EMAIL || 'andresalerno22@gmail.com';
+const initialFormData: ContactFormData = {
+  name: '',
+  email: '',
+  subject: '',
+  message: '',
+  website: '',
+};
 
 export default function ContactSection() {
-  const [formData, setFormData] = useState<FormData>({
-    name: '',
-    email: '',
-    subject: '',
-    message: '',
-  });
+  const [formData, setFormData] = useState<ContactFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -35,33 +39,50 @@ export default function ContactSection() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result = (await response.json().catch(() => null)) as { error?: string; success?: boolean } | null;
+
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || 'Nao foi possivel enviar sua mensagem agora.');
+      }
+
       toast.success('Mensagem enviada com sucesso! Entraremos em contato em breve.');
-      setFormData({ name: '', email: '', subject: '', message: '' });
+      setFormData(initialFormData);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Nao foi possivel enviar sua mensagem agora.');
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
   };
 
   const socialLinks = [
     {
       icon: <Mail className="w-5 h-5" />,
       label: 'Email',
-      href: 'mailto:seu.email@exemplo.com',
+      href: `mailto:${CONTACT_EMAIL}`,
     },
     {
       icon: <Linkedin className="w-5 h-5" />,
       label: 'LinkedIn',
-      href: '#',
+      href: 'https://www.linkedin.com/in/andresalerno/',
     },
     {
       icon: <Github className="w-5 h-5" />,
       label: 'GitHub',
-      href: '#',
+      href: 'https://github.com/andresalerno',
     },
     {
       icon: <MessageCircle className="w-5 h-5" />,
       label: 'WhatsApp',
-      href: '#',
+      href: 'https://wa.me/5511996000630',
     },
   ];
 
@@ -99,10 +120,10 @@ export default function ContactSection() {
               <div>
                 <h3 className="font-sans font-semibold text-[#2c3e50] mb-2">Email</h3>
                 <a
-                  href="mailto:seu.email@exemplo.com"
+                  href={`mailto:${CONTACT_EMAIL}`}
                   className="text-[#d4af37] hover:text-[#1a3a52] transition-all font-sans"
                 >
-                  seu.email@exemplo.com
+                  {CONTACT_EMAIL}
                 </a>
               </div>
               <div>
@@ -134,6 +155,19 @@ export default function ContactSection() {
 
           <div className="bg-white p-8 rounded-lg border border-gray-200 shadow-lg">
             <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="hidden" aria-hidden="true">
+                <label htmlFor="website">Website</label>
+                <Input
+                  id="website"
+                  name="website"
+                  type="text"
+                  value={formData.website}
+                  onChange={handleChange}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+              </div>
+
               <div>
                 <label htmlFor="name" className="block font-sans font-medium text-[#2c3e50] mb-2">
                   Nome Completo
