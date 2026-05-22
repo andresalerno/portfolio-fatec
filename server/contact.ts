@@ -1,3 +1,5 @@
+import { createRequire } from "node:module";
+
 type RequestLike = {
 	body?: unknown;
 	method?: string;
@@ -12,8 +14,10 @@ type ResponseLike = {
 	statusCode?: number;
 };
 
+const require = createRequire(import.meta.url);
+
 export async function handleContactRequest(req: RequestLike, res: ResponseLike) {
-	const mod = await import("../api/contact.js") as {
+	const mod = require("../api/contact.cjs") as {
 		handleContactRequest: (req: RequestLike, res: ResponseLike) => Promise<void>;
 	};
 	await mod.handleContactRequest(req, res);

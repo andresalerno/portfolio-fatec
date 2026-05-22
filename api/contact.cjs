@@ -9,7 +9,7 @@ class ContactRequestError extends Error {
 let cachedTransporter;
 
 function getRequiredEnv(name) {
-  const value = process.env[name]?.trim();
+  const value = process.env[name] && process.env[name].trim();
   if (!value) {
     throw new ContactRequestError(500, `Missing required environment variable: ${name}`, false);
   }
@@ -26,10 +26,10 @@ function validatePayload(body) {
   }
 
   const payload = body;
-  const name = String(payload.name ?? "").trim();
-  const email = String(payload.email ?? "").trim();
-  const subject = String(payload.subject ?? "").trim();
-  const message = String(payload.message ?? "").trim();
+  const name = String(payload.name || "").trim();
+  const email = String(payload.email || "").trim();
+  const subject = String(payload.subject || "").trim();
+  const message = String(payload.message || "").trim();
   const website = payload.website == null ? "" : String(payload.website).trim();
 
   if (name.length < 2) {
@@ -57,22 +57,20 @@ function validatePayload(body) {
   return { name, email, subject, message, website };
 }
 
-async function getTransporter() {
+function getTransporter() {
   if (cachedTransporter) {
     return cachedTransporter;
   }
 
-  const nodemailerModule = await import("nodemailer");
-  const nodemailer = nodemailerModule.default;
-
+  const nodemailer = require("nodemailer");
   const host = getRequiredEnv("SMTP_HOST");
   const port = Number(getRequiredEnv("SMTP_PORT"));
   if (!Number.isFinite(port)) {
     throw new ContactRequestError(500, "SMTP_PORT must be a valid number.", false);
   }
 
-  const secure = (process.env.SMTP_SECURE ?? (port === 465 ? "true" : "false")).trim() === "true";
-  const transporter = nodemailer.createTransport({
+  const secure = String(process.env.SMTP_SECURE || (port === 465 ? "true" : "false")).trim() === "true";
+  cachedTransporter = nodemailer.createTransport({
     host,
     port,
     secure,
@@ -82,7 +80,6 @@ async function getTransporter() {
     },
   });
 
-  cachedTransporter = transporter;
   return cachedTransporter;
 }
 
@@ -99,20 +96,20 @@ function sendJson(res, statusCode, body) {
   res.end(JSON.stringify(body));
 }
 
-async function readJsonBody(req) {
+function readJsonBody(req) {
   if (req.body && typeof req.body === "object") {
-    return req.body;
+    return Promise.resolve(req.body);
   }
 
   if (typeof req.on !== "function") {
-    return {};
+    return Promise.resolve({});
   }
 
-  return await new Promise((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     let body = "";
 
     req.on("data", (chunk) => {
-      body += chunk?.toString() ?? "";
+      body += chunk && typeof chunk.toString === "function" ? chunk.toString() : "";
     });
 
     req.on("end", () => {
@@ -136,11 +133,11 @@ async function readJsonBody(req) {
 
 function escapeHtml(value) {
   return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function buildTextMessage(payload) {
@@ -156,22 +153,22 @@ function buildTextMessage(payload) {
 }
 
 function buildHtmlMessage(payload) {
-  return `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
-      <h2>Nova mensagem recebida pelo formulario do portfolio</h2>
-      <p><strong>Nome:</strong> ${escapeHtml(payload.name)}</p>
-      <p><strong>Email:</strong> ${escapeHtml(payload.email)}</p>
-      <p><strong>Assunto:</strong> ${escapeHtml(payload.subject)}</p>
-      <hr />
-      <p>${escapeHtml(payload.message).replaceAll("\n", "<br />")}</p>
-    </div>
-  `;
+  return [
+    '<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">',
+    "<h2>Nova mensagem recebida pelo formulario do portfolio</h2>",
+    `<p><strong>Nome:</strong> ${escapeHtml(payload.name)}</p>`,
+    `<p><strong>Email:</strong> ${escapeHtml(payload.email)}</p>`,
+    `<p><strong>Assunto:</strong> ${escapeHtml(payload.subject)}</p>`,
+    "<hr />",
+    `<p>${escapeHtml(payload.message).replace(/\n/g, "<br />")}</p>`,
+    "</div>",
+  ].join("");
 }
 
 async function sendContactEmail(payload) {
-  const transporter = await getTransporter();
+  const transporter = getTransporter();
   const to = getRequiredEnv("CONTACT_TO_EMAIL");
-  const from = process.env.CONTACT_FROM_EMAIL?.trim() || getRequiredEnv("SMTP_USER");
+  const from = (process.env.CONTACT_FROM_EMAIL && process.env.CONTACT_FROM_EMAIL.trim()) || getRequiredEnv("SMTP_USER");
 
   await transporter.sendMail({
     to,
@@ -183,7 +180,7 @@ async function sendContactEmail(payload) {
   });
 }
 
-export async function handleContactRequest(req, res) {
+async function handleContactRequest(req, res) {
   if (req.method !== "POST") {
     sendJson(res, 405, { error: "Metodo nao permitido.", success: false });
     return;
@@ -192,8 +189,8 @@ export async function handleContactRequest(req, res) {
   try {
     const body = await readJsonBody(req);
 
-    if (body && typeof body === "object" && "website" in body) {
-      const honeypot = String(body.website ?? "").trim();
+    if (body && typeof body === "object" && Object.prototype.hasOwnProperty.call(body, "website")) {
+      const honeypot = String(body.website || "").trim();
       if (honeypot) {
         sendJson(res, 200, { success: true });
         return;
@@ -217,6 +214,8 @@ export async function handleContactRequest(req, res) {
   }
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   await handleContactRequest(req, res);
-}
+};
+
+module.exports.handleContactRequest = handleContactRequest;

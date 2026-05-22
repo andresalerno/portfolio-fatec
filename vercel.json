@@ -3,7 +3,7 @@
   "buildCommand": "npm run build:client",
   "outputDirectory": "dist/public",
   "functions": {
-    "api/**/*.js": {
+    "api/**/*.cjs": {
       "runtime": "nodejs20.x"
     }
   },
