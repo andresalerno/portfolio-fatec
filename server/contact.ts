@@ -1,4 +1,4 @@
-import { createRequire } from "node:module";
+import { processContactRequest } from "./contact-core";
 
 type RequestLike = {
 	body?: unknown;
@@ -14,11 +14,60 @@ type ResponseLike = {
 	statusCode?: number;
 };
 
-const require = createRequire(import.meta.url);
+async function readJsonBody(req: RequestLike) {
+	if (req.body && typeof req.body === "object") {
+		return req.body;
+	}
+
+	if (typeof req.on !== "function") {
+		return {};
+	}
+
+	return await new Promise((resolve, reject) => {
+		let body = "";
+
+		req.on?.("data", (chunk) => {
+			body += chunk?.toString() ?? "";
+		});
+
+		req.on?.("end", () => {
+			if (!body) {
+				resolve({});
+				return;
+			}
+
+			try {
+				resolve(JSON.parse(body));
+			} catch {
+				reject(new Error("Corpo da requisicao invalido."));
+			}
+		});
+
+		req.on?.("error", reject);
+	});
+}
+
+function sendJson(res: ResponseLike, statusCode: number, body: unknown) {
+	if (typeof res.status === "function" && typeof res.json === "function") {
+		const response = res.status(statusCode);
+		response.json?.(body);
+		return;
+	}
+
+	if (typeof res.setHeader === "function") {
+		res.setHeader("Content-Type", "application/json");
+	}
+
+	res.statusCode = statusCode;
+	res.end(JSON.stringify(body));
+}
 
 export async function handleContactRequest(req: RequestLike, res: ResponseLike) {
-	const mod = require("../api/contact.cjs") as {
-		handleContactRequest: (req: RequestLike, res: ResponseLike) => Promise<void>;
-	};
-	await mod.handleContactRequest(req, res);
+	try {
+		const body = await readJsonBody(req);
+		const result = await processContactRequest(req.method, body);
+		sendJson(res, result.statusCode, result.body);
+	} catch {
+		sendJson(res, 400, { error: "Corpo da requisicao invalido.", success: false });
+	}
 }
