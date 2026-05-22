@@ -1,38 +1,14 @@
-type ContactPayload = {
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-  website?: string;
-};
-
-type RequestLike = {
-  body?: unknown;
-  method?: string;
-  on?: (event: "data" | "end" | "error", listener: (chunk?: Buffer | string | Error) => void) => void;
-};
-
-type ResponseLike = {
-  end: (body?: string) => void;
-  json?: (body: unknown) => void;
-  setHeader?: (name: string, value: string) => void;
-  status?: (code: number) => ResponseLike;
-  statusCode?: number;
-};
-
 class ContactRequestError extends Error {
-  constructor(
-    readonly statusCode: number,
-    message: string,
-    readonly exposeMessage = true,
-  ) {
+  constructor(statusCode, message, exposeMessage = true) {
     super(message);
+    this.statusCode = statusCode;
+    this.exposeMessage = exposeMessage;
   }
 }
 
-let cachedTransporter: { sendMail: (options: unknown) => Promise<unknown> } | undefined;
+let cachedTransporter;
 
-function getRequiredEnv(name: string) {
+function getRequiredEnv(name) {
   const value = process.env[name]?.trim();
   if (!value) {
     throw new ContactRequestError(500, `Missing required environment variable: ${name}`, false);
@@ -40,16 +16,16 @@ function getRequiredEnv(name: string) {
   return value;
 }
 
-function isValidEmail(value: string) {
+function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function validatePayload(body: unknown): ContactPayload {
+function validatePayload(body) {
   if (!body || typeof body !== "object") {
     throw new ContactRequestError(400, "Dados invalidos.");
   }
 
-  const payload = body as Record<string, unknown>;
+  const payload = body;
   const name = String(payload.name ?? "").trim();
   const email = String(payload.email ?? "").trim();
   const subject = String(payload.subject ?? "").trim();
@@ -91,13 +67,11 @@ async function getTransporter() {
 
   const host = getRequiredEnv("SMTP_HOST");
   const port = Number(getRequiredEnv("SMTP_PORT"));
-
   if (!Number.isFinite(port)) {
     throw new ContactRequestError(500, "SMTP_PORT must be a valid number.", false);
   }
 
   const secure = (process.env.SMTP_SECURE ?? (port === 465 ? "true" : "false")).trim() === "true";
-
   const transporter = nodemailer.createTransport({
     host,
     port,
@@ -108,46 +82,40 @@ async function getTransporter() {
     },
   });
 
-  cachedTransporter = {
-    sendMail: (options) => transporter.sendMail(options as Parameters<typeof transporter.sendMail>[0]),
-  };
-
+  cachedTransporter = transporter;
   return cachedTransporter;
 }
 
-function sendJson(res: ResponseLike, statusCode: number, body: unknown) {
-  const status = res.status;
-  const json = res.json;
-
-  if (typeof status === "function" && typeof json === "function") {
-    status.call(res, statusCode).json?.(body);
+function sendJson(res, statusCode, body) {
+  if (typeof res.status === "function" && typeof res.json === "function") {
+    res.status(statusCode).json(body);
     return;
   }
 
+  if (typeof res.setHeader === "function") {
+    res.setHeader("Content-Type", "application/json");
+  }
   res.statusCode = statusCode;
-  res.setHeader?.("Content-Type", "application/json");
   res.end(JSON.stringify(body));
 }
 
-async function readJsonBody(req: RequestLike) {
+async function readJsonBody(req) {
   if (req.body && typeof req.body === "object") {
     return req.body;
   }
 
-  const on = req.on;
-
-  if (typeof on !== "function") {
+  if (typeof req.on !== "function") {
     return {};
   }
 
-  return await new Promise<unknown>((resolve, reject) => {
+  return await new Promise((resolve, reject) => {
     let body = "";
 
-    on("data", (chunk) => {
+    req.on("data", (chunk) => {
       body += chunk?.toString() ?? "";
     });
 
-    on("end", () => {
+    req.on("end", () => {
       if (!body) {
         resolve({});
         return;
@@ -160,13 +128,13 @@ async function readJsonBody(req: RequestLike) {
       }
     });
 
-    on("error", () => {
+    req.on("error", () => {
       reject(new ContactRequestError(400, "Nao foi possivel ler a requisicao."));
     });
   });
 }
 
-function escapeHtml(value: string) {
+function escapeHtml(value) {
   return value
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -175,7 +143,7 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;");
 }
 
-function buildTextMessage(payload: ContactPayload) {
+function buildTextMessage(payload) {
   return [
     "Nova mensagem recebida pelo formulario do portfolio",
     "",
@@ -187,7 +155,7 @@ function buildTextMessage(payload: ContactPayload) {
   ].join("\n");
 }
 
-function buildHtmlMessage(payload: ContactPayload) {
+function buildHtmlMessage(payload) {
   return `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
       <h2>Nova mensagem recebida pelo formulario do portfolio</h2>
@@ -200,7 +168,7 @@ function buildHtmlMessage(payload: ContactPayload) {
   `;
 }
 
-async function sendContactEmail(payload: ContactPayload) {
+async function sendContactEmail(payload) {
   const transporter = await getTransporter();
   const to = getRequiredEnv("CONTACT_TO_EMAIL");
   const from = process.env.CONTACT_FROM_EMAIL?.trim() || getRequiredEnv("SMTP_USER");
@@ -215,7 +183,7 @@ async function sendContactEmail(payload: ContactPayload) {
   });
 }
 
-export async function handleContactRequest(req: RequestLike, res: ResponseLike) {
+export async function handleContactRequest(req, res) {
   if (req.method !== "POST") {
     sendJson(res, 405, { error: "Metodo nao permitido.", success: false });
     return;
@@ -225,7 +193,7 @@ export async function handleContactRequest(req: RequestLike, res: ResponseLike) 
     const body = await readJsonBody(req);
 
     if (body && typeof body === "object" && "website" in body) {
-      const honeypot = String((body as { website?: unknown }).website ?? "").trim();
+      const honeypot = String(body.website ?? "").trim();
       if (honeypot) {
         sendJson(res, 200, { success: true });
         return;
@@ -234,7 +202,6 @@ export async function handleContactRequest(req: RequestLike, res: ResponseLike) 
 
     const payload = validatePayload(body);
     await sendContactEmail(payload);
-
     sendJson(res, 200, { success: true });
   } catch (error) {
     if (error instanceof ContactRequestError) {
@@ -250,6 +217,6 @@ export async function handleContactRequest(req: RequestLike, res: ResponseLike) 
   }
 }
 
-export default async function handler(req: unknown, res: unknown) {
-  await handleContactRequest(req as RequestLike, res as ResponseLike);
+export default async function handler(req, res) {
+  await handleContactRequest(req, res);
 }
