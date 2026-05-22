@@ -1,5 +1,10 @@
 function json(body: { error?: string; success: boolean }, status: number) {
-  return Response.json(body, { status });
+  return new Response(JSON.stringify(body), {
+    headers: {
+      "content-type": "application/json",
+    },
+    status,
+  });
 }
 
 async function loadProcessor() {
@@ -8,9 +13,7 @@ async function loadProcessor() {
 }
 
 export async function GET() {
-  const processContactRequest = await loadProcessor();
-  const result = await processContactRequest("GET", undefined);
-  return json(result.body, result.statusCode);
+  return json({ error: "Metodo nao permitido.", success: false }, 405);
 }
 
 export async function POST(request: Request) {
