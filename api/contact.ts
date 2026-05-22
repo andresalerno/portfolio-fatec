@@ -1,31 +1,29 @@
-function json(body: { error?: string; success: boolean }, status: number) {
-  return new Response(JSON.stringify(body), {
-    headers: {
-      "content-type": "application/json",
-    },
-    status,
-  });
-}
+type VercelLikeRequest = {
+  body?: unknown;
+  method?: string;
+};
 
-async function loadProcessor() {
-  const mod = await import("../server/contact-core");
-  return mod.processContactRequest;
-}
+type VercelLikeResponse = {
+  json: (body: { error?: string; success: boolean }) => void;
+  status: (statusCode: number) => VercelLikeResponse;
+};
 
-export async function GET() {
-  return json({ error: "Metodo nao permitido.", success: false }, 405);
-}
+export default async function handler(request: VercelLikeRequest, response: VercelLikeResponse) {
+  if (request.method !== "POST") {
+    response.status(405).json({ error: "Metodo nao permitido.", success: false });
+    return;
+  }
 
-export async function POST(request: Request) {
-  const processContactRequest = await loadProcessor();
   let body: unknown;
 
   try {
-    body = await request.json();
+    body = request.body;
   } catch {
-    return json({ error: "Corpo da requisicao invalido.", success: false }, 400);
+    response.status(400).json({ error: "Corpo da requisicao invalido.", success: false });
+    return;
   }
 
-  const result = await processContactRequest("POST", body);
-  return json(result.body, result.statusCode);
+  const mod = await import("../server/contact-core");
+  const result = await mod.processContactRequest("POST", body);
+  response.status(result.statusCode).json(result.body);
 }
